@@ -119,6 +119,10 @@ class ContentService {
           content: pexelsContent,
           timestamp: Date.now(),
         });
+        // Also cache individual items in search cache for easy retrieval
+        pexelsContent.forEach((content) => {
+          searchCache.set(content.id, content);
+        });
         return pexelsContent;
       }
     } catch (error) {
@@ -131,6 +135,10 @@ class ContentService {
     contentCache.set(categoryId, {
       content: fallback,
       timestamp: Date.now(),
+    });
+    // Also cache individual items in search cache for easy retrieval
+    fallback.forEach((content) => {
+      searchCache.set(content.id, content);
     });
     return fallback;
   }
@@ -250,6 +258,11 @@ class ContentService {
     if (filters.minRating) {
       results = results.filter((content) => content.rating >= filters.minRating!);
     }
+
+    // Cache all results for retrieval
+    results.forEach((content) => {
+      searchCache.set(content.id, content);
+    });
 
     return results;
   }

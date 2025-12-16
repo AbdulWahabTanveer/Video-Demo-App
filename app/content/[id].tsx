@@ -32,6 +32,8 @@ export default function ContentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { content, loading } = useContentById(id || '');
   const [relatedContent, setRelatedContent] = useState<Content[]>([]);
+  const [relatedLoading, setRelatedLoading] = useState(false);
+  const [relatedError, setRelatedError] = useState<Error | null>(null);
   const colorScheme = useColorScheme();
 
   const isFavorite = useFavoritesStore((state) => state.isFavorite(id || ''));
@@ -45,7 +47,15 @@ export default function ContentDetailScreen() {
 
   React.useEffect(() => {
     if (id) {
-      contentService.getRelatedContent(id).then(setRelatedContent);
+      setRelatedLoading(true);
+      setRelatedError(null);
+      contentService.getRelatedContent(id)
+        .then(setRelatedContent)
+        .catch((error) => {
+          setRelatedError(error instanceof Error ? error : new Error('Failed to load related content'));
+          setRelatedContent([]);
+        })
+        .finally(() => setRelatedLoading(false));
     }
   }, [id]);
 
@@ -174,7 +184,27 @@ export default function ContentDetailScreen() {
           </View>
 
           {/* Related Content */}
-          {relatedContent.length > 0 && (
+          {relatedLoading && (
+            <View style={styles.relatedContainer}>
+              <ThemedText type="subtitle" style={styles.sectionTitle}>
+                More Like This
+              </ThemedText>
+              <View style={styles.relatedLoadingContainer}>
+                <ActivityIndicator size="small" color={Colors[colorScheme ?? 'light'].tint} />
+              </View>
+            </View>
+          )}
+          
+          {relatedError && (
+            <View style={styles.relatedContainer}>
+              <ThemedText type="subtitle" style={styles.sectionTitle}>
+                More Like This
+              </ThemedText>
+              <ThemedText style={styles.errorText}>Could not load related content</ThemedText>
+            </View>
+          )}
+          
+          {!relatedLoading && relatedContent.length > 0 && (
             <View style={styles.relatedContainer}>
               <ThemedText type="subtitle" style={styles.sectionTitle}>
                 More Like This
@@ -184,12 +214,12 @@ export default function ContentDetailScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.relatedScroll}>
                 {relatedContent.map((item) => (
-                  <VideoCard
-                    key={item.id}
-                    content={item}
-                    size="medium"
-                    onPress={() => router.replace(`/content/${item.id}`)}
-                  />
+                  <View key={item.id} style={styles.relatedCardWrapper}>
+                    <VideoCard
+                      content={item}
+                      onPress={() => router.replace(`/content/${item.id}`)}
+                    />
+                  </View>
                 ))}
               </ScrollView>
             </View>
@@ -318,9 +348,25 @@ const styles = StyleSheet.create({
   },
   relatedContainer: {
     marginTop: 8,
+    marginBottom: 20,
   },
   relatedScroll: {
     paddingRight: 16,
+    gap: 12,
+  },
+  relatedCardWrapper: {
+    width: 160,
+    marginRight: 12,
+  },
+  relatedLoadingContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    fontSize: 14,
+    opacity: 0.6,
+    color: '#FF6B6B',
   },
 });
 
