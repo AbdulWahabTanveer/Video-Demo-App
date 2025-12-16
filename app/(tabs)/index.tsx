@@ -9,7 +9,7 @@ import { VideoCard } from '@/components/content/VideoCard';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
+import { Colors, DEBOUNCE_DELAY_MS } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategories, useContent, useContentByCategory, useSearchContent } from '@/hooks/useContent';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -32,8 +32,8 @@ export default function BrowseScreen() {
     params.categoryId || null
   );
 
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
-  const { results, loading: searchLoading, search } = useSearchContent();
+  const debouncedSearchQuery = useDebounce(searchQuery, DEBOUNCE_DELAY_MS);
+  const { results, loading: searchLoading, error: searchError, search } = useSearchContent();
   const { categories } = useCategories();
   const {
     content: categoryContent,
@@ -147,6 +147,8 @@ export default function BrowseScreen() {
           <View style={styles.emptyContainer}>
             {isLoading ? (
               <ThemedText style={styles.emptyText}>Loading amazing content...</ThemedText>
+            ) : searchError ? (
+              <ThemedText style={styles.emptyText}>Error: {searchError.message}</ThemedText>
             ) : (
               <>
                 <IconSymbol name="magnifyingglass" size={48} color={Colors[colorScheme ?? 'light'].icon} style={{ opacity: 0.3, marginBottom: 16 }} />

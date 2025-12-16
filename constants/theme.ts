@@ -5,6 +5,21 @@
 
 import { Platform } from 'react-native';
 
+// Timing constants
+export const DEBOUNCE_DELAY_MS = 300;
+export const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+export const API_TIMEOUT_MS = 10000; // 10 seconds
+
+// Category ID constants
+export const CATEGORY_IDS = {
+  ACTION: '1',
+  COMEDY: '2',
+  DRAMA: '3',
+  SCI_FI: '4',
+  DOCUMENTARY: '5',
+  HORROR: '6',
+} as const;
+
 const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
 

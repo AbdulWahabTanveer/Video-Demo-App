@@ -3,9 +3,9 @@
  * Using Zustand for lightweight state management
  */
 
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 interface FavoritesState {
   favorites: string[]; // Content IDs
@@ -29,15 +29,12 @@ export const useFavoritesStore = create<FavoritesState>()(
         set((state) => ({
           favorites: state.favorites.filter((id) => id !== contentId),
         })),
-      toggleFavorite: (contentId: string) => {
-        const state = get();
-        const isFavorite = state.favorites.includes(contentId);
-        if (isFavorite) {
-          state.removeFavorite(contentId);
-        } else {
-          state.addFavorite(contentId);
-        }
-      },
+      toggleFavorite: (contentId: string) =>
+        set((state) => ({
+          favorites: state.favorites.includes(contentId)
+            ? state.favorites.filter((id) => id !== contentId)
+            : [...state.favorites, contentId],
+        })),
       isFavorite: (contentId: string) => get().favorites.includes(contentId),
     }),
     {

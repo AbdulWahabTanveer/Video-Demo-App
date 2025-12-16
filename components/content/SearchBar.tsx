@@ -1,37 +1,29 @@
 /**
  * SearchBar Component
- * Reusable search input component
+ * Reusable search input component with controlled value
  */
 
-import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import React from 'react';
+import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
   placeholder?: string;
-  value?: string;
+  value: string;
 }
 
-export function SearchBar({ onSearch, placeholder = 'Search content...', value: controlledValue }: SearchBarProps) {
+export function SearchBar({ onSearch, placeholder = 'Search content...', value }: SearchBarProps) {
   const colorScheme = useColorScheme();
-  const [localValue, setLocalValue] = useState('');
-  const value = controlledValue !== undefined ? controlledValue : localValue;
 
   const handleChange = (text: string) => {
-    if (controlledValue === undefined) {
-      setLocalValue(text);
-    }
     onSearch(text);
   };
 
   const handleClear = () => {
-    if (controlledValue === undefined) {
-      setLocalValue('');
-    }
     onSearch('');
   };
 

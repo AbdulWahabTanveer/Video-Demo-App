@@ -4,6 +4,7 @@
  * Integrates with Pexels API for real video content
  */
 
+import { CACHE_DURATION_MS } from '@/constants/theme';
 import { Category, Content, SearchFilters } from '@/types';
 import { pexelsService } from './pexelsService';
 
@@ -77,7 +78,8 @@ const generateFallbackContent = (category: Category): Content[] => {
 
 // Cache for content by category
 const contentCache: Map<string, { content: Content[]; timestamp: number }> = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+// Cache for search results
+const searchCache: Map<string, Content> = new Map();
 
 class ContentService {
   /**
@@ -101,7 +103,7 @@ class ContentService {
   private async getCategoryContent(categoryId: string): Promise<Content[]> {
     // Check cache first
     const cached = contentCache.get(categoryId);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION_MS) {
       return cached.content;
     }
 
@@ -176,6 +178,11 @@ class ContentService {
   async getContentById(id: string): Promise<Content | null> {
     await this.delay(100);
     
+    // Check search cache first
+    if (searchCache.has(id)) {
+      return searchCache.get(id) || null;
+    }
+    
     // Search through all content (includes both Pexels and fallback)
     const allContent = await this.getAllContent();
     return allContent.find((content) => content.id === id) || null;
@@ -192,6 +199,11 @@ class ContentService {
       try {
         const searchResults = await pexelsService.searchVideos(filters.query, 20);
         if (searchResults.length > 0) {
+          // Cache search results for later retrieval
+          searchResults.forEach((content) => {
+            searchCache.set(content.id, content);
+          });
+
           // Apply additional filters
           let results = searchResults;
 

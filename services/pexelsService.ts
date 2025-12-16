@@ -55,6 +55,13 @@ class PexelsService {
   }
 
   /**
+   * Check if API key is properly configured
+   */
+  private isApiKeyConfigured(): boolean {
+    return !!(this.apiKey && this.apiKey.trim().length > 0);
+  }
+
+  /**
    * Get the best quality video URL from Pexels video files
    */
   private getBestVideoUrl(videoFiles: PexelsVideo['video_files']): string {
@@ -73,6 +80,14 @@ class PexelsService {
    * Fetch videos from Pexels API
    */
   private async fetchVideos(query: string, perPage: number = 15): Promise<PexelsVideo[]> {
+    // Validate API key before making requests
+    if (!this.isApiKeyConfigured()) {
+      if (__DEV__) {
+        console.warn('Pexels API key is not configured');
+      }
+      return [];
+    }
+
     try {
       const response = await fetch(
         `${PEXELS_API_URL}/search?query=${encodeURIComponent(query)}&per_page=${perPage}`,
@@ -255,7 +270,7 @@ class PexelsService {
    * Fetch videos for a category
    */
   async getVideosForCategory(category: Category, limit: number = 15): Promise<Content[]> {
-    if (!this.apiKey || this.apiKey.trim() === '') {
+    if (!this.isApiKeyConfigured()) {
       if (__DEV__) {
         console.warn('Pexels API key not configured. Using fallback content.');
       }
@@ -276,7 +291,7 @@ class PexelsService {
    * Search videos
    */
   async searchVideos(query: string, limit: number = 20): Promise<Content[]> {
-    if (!this.apiKey || this.apiKey.trim() === '') {
+    if (!this.isApiKeyConfigured()) {
       if (__DEV__) {
         console.warn('Pexels API key not configured. Search unavailable.');
       }

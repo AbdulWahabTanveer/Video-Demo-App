@@ -3,9 +3,9 @@
  * Implements clean separation of concerns
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { Content, Category, SearchFilters } from '@/types';
 import { contentService } from '@/services/contentService';
+import { Category, Content, SearchFilters } from '@/types';
+import { useCallback, useEffect, useState } from 'react';
 
 interface UseContentResult {
   content: Content[];
@@ -129,6 +129,7 @@ export function useSearchContent() {
     // Don't search if query is empty
     if (!filters.query || filters.query.trim().length === 0) {
       setResults([]);
+      setError(null);
       setLoading(false);
       return;
     }
@@ -139,7 +140,8 @@ export function useSearchContent() {
       const data = await contentService.searchContent(filters);
       setResults(data);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Search failed'));
+      const error = err instanceof Error ? err : new Error('Search failed');
+      setError(error);
       setResults([]);
     } finally {
       setLoading(false);
