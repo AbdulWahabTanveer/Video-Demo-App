@@ -1,52 +1,39 @@
 /**
- * Content Detail Screen
- * TikTok-style scrollable video feed
+ * Browse Screen
+ * TikTok-style vertical video feed with immersive experience
  */
 
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { useContent, useContentById } from '@/hooks/useContent';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useContent } from '@/hooks/useContent';
 import { useFavoritesStore } from '@/store/favoritesStore';
 import { Content } from '@/types';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Dimensions,
-  FlatList,
-  StatusBar,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Dimensions,
+    FlatList,
+    StatusBar,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
-export default function ContentDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { content: initialContent, loading: initialLoading } = useContentById(id || '');
-  const { content: allContent, loading: allLoading } = useContent();
+export default function BrowseScreen() {
+  const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
-  const [activeVideoId, setActiveVideoId] = useState<string | null>(id || null);
+  const { content, loading, error } = useContent();
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const isFavorite = useFavoritesStore((s) => s.isFavorite);
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
   const videoRefs = useRef<Map<string, any>>(new Map());
-  const flatListRef = useRef<FlatList>(null);
-
-  // Find initial index
-  const initialIndex = allContent.findIndex((item) => item.id === id) || 0;
-
-  // Scroll to initial item when content loads
-  useEffect(() => {
-    if (allContent.length > 0 && initialIndex >= 0 && flatListRef.current) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToIndex({ index: initialIndex, animated: false });
-      }, 100);
-    }
-  }, [allContent.length, initialIndex]);
 
   // Create ref at top level for viewability callback
   const onViewableItemsChangedRef = useRef(({ viewableItems }: any) => {
@@ -55,21 +42,21 @@ export default function ContentDetailScreen() {
       setActiveVideoId(newActiveId);
       
       // Pause all videos except the active one
-      videoRefs.current.forEach((player, videoId) => {
+      videoRefs.current.forEach((player, id) => {
         if (player) {
-          try {
-            if (videoId === newActiveId) {
-              player.play();
-            } else {
-              player.pause();
-            }
-          } catch {
-            // Silently handle errors
+          if (id === newActiveId) {
+            player.play();
+          } else {
+            player.pause();
           }
         }
       });
     }
   });
+
+  const handleContentPress = (content: Content) => {
+    router.push(`/content/${content.id}`);
+  };
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -94,6 +81,7 @@ export default function ContentDetailScreen() {
         isLiked={isLiked}
         isActive={isActive}
         onToggleFavorite={toggleFavorite}
+        onPress={handleContentPress}
         formatDuration={formatDuration}
         formatViews={formatViews}
         videoRefs={videoRefs}
@@ -102,7 +90,7 @@ export default function ContentDetailScreen() {
     );
   };
 
-  if (initialLoading || allLoading) {
+  if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6366f1" />
@@ -111,18 +99,12 @@ export default function ContentDetailScreen() {
     );
   }
 
-  if (!initialContent || allContent.length === 0) {
+  if (error) {
     return (
       <View style={styles.loadingContainer}>
         <IconSymbol name="exclamationmark.triangle" size={56} color="#ff4d4d" />
-        <ThemedText style={styles.errorText}>
-          {!initialContent ? 'Content not found' : 'No content available'}
-        </ThemedText>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}>
-          <ThemedText style={styles.backButtonText}>Go Back</ThemedText>
-        </TouchableOpacity>
+        <ThemedText style={styles.errorText}>Failed to load content</ThemedText>
+        <ThemedText style={styles.errorSubtext}>{error.message}</ThemedText>
       </View>
     );
   }
@@ -130,22 +112,8 @@ export default function ContentDetailScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-      
-      {/* Back Button */}
-      <SafeAreaView style={styles.topContainer} edges={['top']}>
-        <TouchableOpacity
-          style={styles.backButtonTop}
-          onPress={() => router.back()}
-        >
-          <View style={styles.backButtonBlur}>
-            <IconSymbol name="chevron.left" size={24} color="#FFF" />
-          </View>
-        </TouchableOpacity>
-      </SafeAreaView>
-
       <FlatList
-        ref={flatListRef}
-        data={allContent}
+        data={content}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         pagingEnabled
@@ -157,23 +125,6 @@ export default function ContentDetailScreen() {
           itemVisiblePercentThreshold: 50
         }}
         onViewableItemsChanged={onViewableItemsChangedRef.current}
-        getItemLayout={(data, index) => ({
-          length: SCREEN_HEIGHT - insets.bottom,
-          offset: (SCREEN_HEIGHT - insets.bottom) * index,
-          index,
-        })}
-        initialScrollIndex={initialIndex >= 0 ? initialIndex : 0}
-        onScrollToIndexFailed={(info) => {
-          // Fallback if scroll fails
-          setTimeout(() => {
-            flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
-          }, 100);
-        }}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={3}
-        updateCellsBatchingPeriod={50}
-        windowSize={5}
-        initialNumToRender={3}
         ListEmptyComponent={
           <View style={[styles.emptyFullContainer, { height: SCREEN_HEIGHT - insets.bottom }]}>
             <IconSymbol name="film" size={80} color="rgba(255,255,255,0.3)" />
@@ -192,85 +143,54 @@ interface VideoItemProps {
   isLiked: boolean;
   isActive: boolean;
   onToggleFavorite: (id: string) => void;
+  onPress: (content: Content) => void;
   formatDuration: (seconds: number) => string;
   formatViews: (views: number) => string;
   videoRefs: React.MutableRefObject<Map<string, any>>;
   screenHeight: number;
 }
 
-const VideoItem = React.memo(function VideoItem({ 
+const VideoItem = React.memo(({ 
   item, 
   isLiked, 
   isActive,
   onToggleFavorite, 
+  onPress, 
   formatDuration, 
   formatViews,
   videoRefs,
   screenHeight 
-}: VideoItemProps) {
+}: VideoItemProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const isMountedRef = useRef(true);
-  
-  // Only create player if item is active or about to be active
-  const player = useVideoPlayer(item.videoUrl || '', (player) => {
+  const player = useVideoPlayer(item.videoUrl, (player) => {
     player.loop = true;
     player.muted = false;
-    player.pause(); // Start paused
   });
 
   useEffect(() => {
-    isMountedRef.current = true;
-    const currentPlayer = player;
-    const refs = videoRefs.current;
-    
-    if (item.videoUrl) {
-      refs.set(item.id, currentPlayer);
-    }
-    
+    videoRefs.current.set(item.id, player);
     return () => {
-      isMountedRef.current = false;
-      refs.delete(item.id);
-      try {
-        if (currentPlayer && typeof currentPlayer.pause === 'function') {
-          currentPlayer.pause();
-        }
-      } catch {
-        // Player may already be released, ignore cleanup errors
-      }
+      videoRefs.current.delete(item.id);
     };
-  }, [item.id, item.videoUrl, player, videoRefs]);
+  }, [item.id, player]);
 
   useEffect(() => {
-    if (!isMountedRef.current || !item.videoUrl) return;
-    
     if (isActive) {
-      try {
-        player.play();
-        setIsPlaying(true);
-      } catch {
-        // Silently handle errors
-      }
+      player.play();
+      setIsPlaying(true);
     } else {
-      try {
-        player.pause();
-        setIsPlaying(false);
-      } catch {
-        // Silently handle errors
-      }
+      player.pause();
+      setIsPlaying(false);
     }
-  }, [isActive, player, item.videoUrl]);
+  }, [isActive, player]);
 
   const handlePlayPause = () => {
-    try {
-      if (isPlaying) {
-        player.pause();
-        setIsPlaying(false);
-      } else {
-        player.play();
-        setIsPlaying(true);
-      }
-    } catch {
-      // Silently handle errors
+    if (isPlaying) {
+      player.pause();
+      setIsPlaying(false);
+    } else {
+      player.play();
+      setIsPlaying(true);
     }
   };
 
@@ -280,6 +200,7 @@ const VideoItem = React.memo(function VideoItem({
       <VideoView
         style={styles.videoPlayer}
         player={player}
+        allowsFullscreen={false}
         allowsPictureInPicture={false}
         nativeControls={false}
       />
@@ -338,6 +259,16 @@ const VideoItem = React.memo(function VideoItem({
           <ThemedText style={styles.interactionLabel}>{item.rating.toFixed(1)}</ThemedText>
         </TouchableOpacity>
 
+        <TouchableOpacity 
+          style={styles.interactionBtn}
+          onPress={() => onPress(item)}
+        >
+          <View style={styles.iconBlur}>
+            <IconSymbol name="info.circle.fill" size={28} color="#FFF" />
+          </View>
+          <ThemedText style={styles.interactionLabel}>Info</ThemedText>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.interactionBtn}>
           <View style={styles.iconBlur}>
             <IconSymbol name="square.and.arrow.up.fill" size={28} color="#FFF" />
@@ -391,34 +322,10 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   
-  // TOP CONTAINER
-  topContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 20,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-  },
-  backButtonTop: {
-    alignSelf: 'flex-start',
-  },
-  backButtonBlur: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  
   // TOP PROFILE SECTION
   topProfileContainer: {
     position: 'absolute',
-    top: 60,
+    top: 0,
     left: 0,
     right: 0,
     paddingHorizontal: 16,
@@ -578,16 +485,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 20,
   },
-  backButton: {
-    marginTop: 20,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: 'rgba(128, 128, 128, 0.2)',
-  },
-  backButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
+  errorSubtext: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
   },
   emptyFullContainer: {
     width: SCREEN_WIDTH,
